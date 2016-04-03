@@ -12,8 +12,8 @@ class MetaRCPHandler(type):
         rpc_methods = set()
         for key, method in attrs.items():
             if hasattr(method, '__call__') and key.startswith('rpc_'):
-                method = key[4:]
-                rpc_methods.add(method)
+                method_name = key[4:]
+                rpc_methods.add(method_name)
         attrs['rpc_methods'] = frozenset(rpc_methods)
         return super().__new__(cls, name, bases, attrs)
 
