@@ -14,6 +14,9 @@ class MetaRCPHandler(type):
             if hasattr(method, '__call__') and key.startswith('rpc_'):
                 method_name = key[4:]
                 rpc_methods.add(method_name)
+        for base in bases:
+            if hasattr(base, 'rpc_methods'):
+                rpc_methods.update(base.rpc_methods)
         attrs['rpc_methods'] = frozenset(rpc_methods)
         return super().__new__(cls, name, bases, attrs)
 
@@ -42,9 +45,9 @@ class WSRPCHandler(RPCHandler):
                     break
             elif msg.tp == aiohttp.MsgType.binary:
                 body = msg.data
-                (i, ), data = struct.unpack("I", body[:4]), body[4:]
+                (i, ), data = struct.unpack('I', body[:4]), body[4:]
                 method, blob = data[:i], data[i:]
-                handler = self.get_handler(method.decode("utf-8"))
+                handler = self.get_handler(method.decode('utf-8'))
                 # Expects async handler
                 result = await handler(ws, method, blob)
             elif msg.tp == aiohttp.MsgType.error:

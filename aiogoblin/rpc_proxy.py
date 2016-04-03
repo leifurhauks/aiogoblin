@@ -1,4 +1,4 @@
-"""Simple rpc proxy, inpspired by Pulsar"""
+'''Simple rpc proxy, inpspired by Pulsar'''
 
 import struct
 
@@ -59,11 +59,11 @@ class WSRPCProxy:
     def __getattr__(self, name):
         return WSCall(self, name)
 
-    async def _call(self, name, blob=b""):
-        method = name.encode("utf-8")
+    async def _call(self, name, blob=b''):
+        method = name.encode('utf-8')
         data = struct.pack(
-            "@I%ds%ds" % (len(method), len(blob)), len(method), method, blob)
+            '@I%ds%ds' % (len(method), len(blob)), len(method), method, blob)
         client = await self._session.ws_connect(self._url)
         client.send_bytes(data)
-        client.send_str("close")
+        client.send_str('close')
         return client
