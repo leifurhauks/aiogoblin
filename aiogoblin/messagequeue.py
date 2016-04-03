@@ -1,29 +1,14 @@
-#!/usr/bin/env python
-# BORROWED FROM ZEROMQ BOOK EXAMPLES
-# THIS IS A NON-BLOCKING SHARED QUEUE using ZEROMQ dealer/router sockets
-"""
-synopsis:
-    Simple request-reply broker.
-    Author: Lev Givon <lev(at)columbia(dot)edu>
-    Modified for async/ioloop: Dave Kuhlman <dkuhlman(at)davekuhlman(dot)org>
-usage:
-    python rrbroker.py
-notes:
-    To run this, start rrbroker.py, any number of instances of rrworker.py,
-    and rrclient.py.
-"""
-
+import asyncio
 import sys
+
 import zmq
 from zmq.asyncio import Context, Poller, ZMQEventLoop
-import asyncio
 
 
-@asyncio.coroutine
-def run_broker(context):
+async def run_broker(context):
     # Prepare our context and sockets
     frontend = context.socket(zmq.ROUTER)
-    backend = context.socket(zmq.DEALER)
+    backend = context.socket(zmq.ROUTER)
     frontend.bind("tcp://*:5559")
     backend.bind("tcp://*:5560")
     # Initialize poll set
@@ -32,22 +17,26 @@ def run_broker(context):
     poller.register(backend, zmq.POLLIN)
     # Switch messages between sockets
     while True:
-        socks = yield from poller.poll()
+        socks = await poller.poll()
         socks = dict(socks)
+
         if socks.get(frontend) == zmq.POLLIN:
-            message = yield from frontend.recv_multipart()
-            print('received from frontend: {}'.format(message))
-            yield from backend.send_multipart(message)
+            frames = await frontend.recv_multipart()
+            print('received from frontend: {}'.format(frames))
+            # Add the worker ident to the envelope - simplified for example.
+            frames.insert(0, b'Worker1')
+            await backend.send_multipart(frames)
+
         if socks.get(backend) == zmq.POLLIN:
-            message = yield from backend.recv_multipart()
-            print('received from backend: {}'.format(message))
-            yield from frontend.send_multipart(message)
+            frames = await backend.recv_multipart()
+            msg = frames[1:]  # Slice off worker ident
+            print('received from backend: {}'.format(frames))
+            await frontend.send_multipart(msg)
 
 
-@asyncio.coroutine
-def run(loop):
+async def run(loop):
     context = Context()
-    yield from run_broker(context)
+    await run_broker(context)
 
 
 def main():

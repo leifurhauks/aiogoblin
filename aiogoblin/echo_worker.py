@@ -1,40 +1,29 @@
-#!/usr/bin/env python
-# BORROWED FROM ZEROMQ BOOK EXAMPLES
-# Simple echo worker
-"""
-synopsis:
-    Request-reply service in Python
-    Connects REP socket to tcp://localhost:5560
-    Expects "Hello" from client, replies with "World"
-    Modified for async/ioloop: Dave Kuhlman <dkuhlman(at)davekuhlman(dot)org>
-usage:
-    python rrworker.py
-notes:
-    To run this, start rrbroker.py, any number of instances of rrworker.py,
-    and rrclient.py.
-"""
-
+import asyncio
 import sys
 import zmq
 from zmq.asyncio import Context, ZMQEventLoop
-import asyncio
 
 
-@asyncio.coroutine
-def run_worker(context):
-    socket = context.socket(zmq.REP)
-    socket.connect("tcp://localhost:5560")
+async def run_worker(context):
+    worker = context.socket(zmq.DEALER)
+    identity = "Worker1"  # This is just for a convenient example
+    identity = identity.encode('utf-8')
+    worker.setsockopt(zmq.IDENTITY, identity)
+    worker.connect("tcp://localhost:5560")
     while True:
-        message = yield from socket.recv()
+        message = await worker.recv_multipart()
+        address = message[0]
         print("Received request: %s" % message)
-        yield from socket.send(message)
+        await worker.send_multipart(message)
+
+        # Illustrate the streaming functionality
+        await worker.send_multipart([address, b'', b'closing'])
         print("Sent reply: {}".format(message))
 
 
-@asyncio.coroutine
-def run(loop):
+async def run(loop):
     context = Context()
-    yield from run_worker(context)
+    await run_worker(context)
 
 
 def main():

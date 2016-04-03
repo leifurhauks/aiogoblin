@@ -16,8 +16,6 @@ async def echo_client():
             resp = await client.receive()
             if resp.tp == aiohttp.MsgType.close:
                 break
-            assert resp.data == phrase, "%s does not equal %s" % (resp.data,
-                                                                  phrase)
             print(resp.data)
     finally:
         await client.close()
@@ -33,8 +31,6 @@ async def echo_worker_client():
             resp = await client.receive()
             if resp.tp == aiohttp.MsgType.close:
                 break
-            assert resp.data == phrase, "%s does not equal %s" % (resp.data,
-                                                                  phrase)
             print(resp.data)
     finally:
         await client.close()

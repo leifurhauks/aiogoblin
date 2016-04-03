@@ -22,12 +22,20 @@ class RPC(WSRPCHandler):
         ws.send_bytes(blob)
 
     async def rpc_echo_worker(self, ws, method, blob):
-        socket = self._context.socket(zmq.REQ)
+        socket = self._context.socket(zmq.DEALER)
         socket.connect('tcp://localhost:5559')
-        await socket.send(blob)
-        message = await socket.recv()
-        assert message == blob, '%s does not equal %s' % (message, blob)
-        ws.send_bytes(blob)
+        await socket.send_multipart([b'', blob])
+
+        # Echo worker streams `closing after echoing`
+        message = await socket.recv_multipart()
+        assert message[-1] == blob, '%s does not equal %s' % (
+            message[-1], blob)
+        ws.send_bytes(message[-1])
+
+        message = await socket.recv_multipart()
+        assert message[-1] == b'closing', '%s does not equal %s' % (
+            message1[-1], 'closing')
+        ws.send_bytes(message[-1])
 
 
 # CLI
