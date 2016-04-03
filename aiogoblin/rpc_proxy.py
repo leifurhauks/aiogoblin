@@ -59,10 +59,11 @@ class WSRPCProxy:
     def __getattr__(self, name):
         return WSCall(self, name)
 
-    def _call(self, name, blob=b""):
+    async def _call(self, name, blob=b""):
         method = name.encode("utf-8")
         data = struct.pack(
             "@I%ds%ds" % (len(method), len(blob)), len(method), method, blob)
-        client = yield from self._session.ws_connect(self._url)
+        client = await self._session.ws_connect(self._url)
         client.send_bytes(data)
+        client.send_str("close")
         return client

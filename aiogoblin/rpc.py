@@ -7,7 +7,7 @@ from aiohttp import web
 
 
 class MetaRCPHandler(type):
-    """Collect all user defined rpc methods"""
+    """Collect all user defined RPC methods"""
     def __new__(cls, name, bases, attrs):
         rpc_methods = set()
         for key, method in attrs.items():
@@ -34,20 +34,23 @@ class WSRPCHandler(RPCHandler):
         ws = web.WebSocketResponse()
         await ws.prepare(request)
 
-        # This closes after one request...
-        async for msg in ws:
-            if msg.tp == aiohttp.MsgType.binary:
+        while True:
+            msg = await ws.receive()
+            if msg.tp == aiohttp.MsgType.text:
+                if msg.data == 'close':
+                    # Breaking makes more sense here...
+                    break
+            elif msg.tp == aiohttp.MsgType.binary:
                 body = msg.data
                 (i, ), data = struct.unpack("I", body[:4]), body[4:]
                 method, blob = data[:i], data[i:]
                 handler = self.get_handler(method.decode("utf-8"))
                 # Expects async handler
                 result = await handler(ws, method, blob)
-                # Close sequence is empty byte in this case
-                ws.send_bytes(b"")
             elif msg.tp == aiohttp.MsgType.error:
                 print('ws connection closed with exception %s' %
                       ws.exception())
+
         await ws.close()
         print('websocket connection closed')
 
