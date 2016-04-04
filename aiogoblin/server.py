@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 import aiohttp
 from aiohttp import web
@@ -7,6 +8,8 @@ import zmq
 from zmq.asyncio import Context, ZMQEventLoop
 
 from rpc import WSRPCHandler
+
+logger = logging.getLogger('server')
 
 
 class RPC(WSRPCHandler):
@@ -22,11 +25,15 @@ class RPC(WSRPCHandler):
         ws.send_bytes(blob)
 
     async def rpc_echo_worker(self, ws, method, blob):
+        logger.debug('in rpc_echo_worker')
         socket = self._context.socket(zmq.DEALER)
         socket.connect('tcp://localhost:5559')
+        logger.debug('socket: %s', socket)
         await socket.send_multipart([b'', blob])
+        logger.debug('sent blob: %s', blob)
 
         message = await socket.recv_multipart()
+        logger.debug('got message from socket: %s', message)
         assert message[-1] == blob, '%s does not equal %s' % (
             message[-1], blob)
         ws.send_bytes(message[-1])
@@ -34,7 +41,7 @@ class RPC(WSRPCHandler):
         # Echo worker streams `closing` after echoing
         message = await socket.recv_multipart()
         assert message[-1] == b'closing', '%s does not equal %s' % (
-            message1[-1], 'closing')
+            message[-1], 'closing')
         ws.send_bytes(message[-1])
 
 
@@ -58,6 +65,7 @@ async def init(loop):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)
     loop = ZMQEventLoop()
     asyncio.set_event_loop(loop)
     srv, handler = loop.run_until_complete(init(loop))
