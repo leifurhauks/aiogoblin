@@ -5,7 +5,7 @@ import zmq
 from zmq.asyncio import Context, Poller, ZMQEventLoop
 
 
-async def run_broker(context):
+async def run_queue(context):
     # Prepare our context and sockets
     frontend = context.socket(zmq.ROUTER)
     backend = context.socket(zmq.ROUTER)
@@ -29,14 +29,14 @@ async def run_broker(context):
 
         if socks.get(backend) == zmq.POLLIN:
             frames = await backend.recv_multipart()
-            msg = frames[1:]  # Slice off worker ident
             print('received from backend: {}'.format(frames))
+            msg = frames[1:]  # Slice off worker ident
             await frontend.send_multipart(msg)
 
 
 async def run(loop):
     context = Context()
-    await run_broker(context)
+    await run_queue(context)
 
 
 def main():
